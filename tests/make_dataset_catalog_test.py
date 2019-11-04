@@ -6,12 +6,6 @@ def test_clean_title():
     assert mdc._clean_title('伊丹空港 - Wikipedia Dump 20171103') == '伊丹空港'
 
 
-def test_add_values():
-    values = [1, 2, 3]
-    mdc._add_values(values, (4, 5, 6))
-    assert values == [5, 7, 9]
-
-
 def test_transpose():
     assert tuple(mdc._transpose(((1, 2), (3, 4)))) == ((1, 3), (2, 4))
     assert tuple(mdc._transpose(((1, 2), (3, 4, 5)))) \

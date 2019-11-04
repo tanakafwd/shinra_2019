@@ -3,11 +3,11 @@ import os
 import platform
 import shutil
 import subprocess
+import sys
 from argparse import ArgumentParser
-from collections import namedtuple
 from multiprocessing import Pool
 from tempfile import TemporaryDirectory
-from typing import Set
+from typing import List, NamedTuple, Set
 
 from tqdm import tqdm
 
@@ -42,9 +42,10 @@ def _unzip(zip_file_path: str, output_dir: str) -> None:
         _LOG.warning(f'Non-zero code returned: {proc.returncode}')
 
 
-_UnzipTaskArgs = namedtuple(
-    '_UnzipTaskArgs',
-    ('zip_file_path', 'expected_md5_digest', 'output_dir'))
+class _UnzipTaskArgs(NamedTuple):
+    zip_file_path: str
+    expected_md5_digest: str
+    output_dir: str
 
 
 def _unzip_task(args: _UnzipTaskArgs) -> None:
@@ -57,15 +58,18 @@ def _unzip_task(args: _UnzipTaskArgs) -> None:
     return _unzip(args.zip_file_path, args.output_dir)
 
 
-_UnzipInsideTaskArgs = namedtuple('_UnzipInsideTaskArgs',
-                                  ('zip_file_path', 'output_dir'))
+class _UnzipInsideTaskArgs(NamedTuple):
+    zip_file_path: str
+    output_dir: str
 
 
 def _unzip_inside_task(args: _UnzipInsideTaskArgs) -> None:
     return _unzip(args.zip_file_path, args.output_dir)
 
 
-_MoveTaskArgs = namedtuple('_MoveTaskArgs', ('src_file_path', 'dst_file_path'))
+class _MoveTaskArgs(NamedTuple):
+    src_file_path: str
+    dst_file_path: str
 
 
 def _move_task(args: _MoveTaskArgs) -> None:
@@ -145,8 +149,8 @@ def arrange_dataset(dataset_dir: str) -> None:
                             src_file_path=os.path.join(root, file_name),
                             dst_file_path=dst_file_path))
         for dst_dir in frozenset(
-                os.path.dirname(dst_file_path)
-                for (unused, dst_file_path) in move_task_args_list):
+                os.path.dirname(move_task_args.dst_file_path)
+                for move_task_args in move_task_args_list):
             util.makedirs(dst_dir)
         with Pool() as pool:
             for unused in tqdm(pool.imap(_move_task,
@@ -179,16 +183,16 @@ def arrange_dataset(dataset_dir: str) -> None:
         assert html_page_ids == text_page_ids
 
 
-def main() -> None:
+def main(args: List[str]) -> None:
     parser = ArgumentParser()
     parser.add_argument('--dataset_dir',
                         type=str,
                         required=True,
                         help='Path to the dataset directory.')
-    (flags, unparsed) = parser.parse_known_args()
+    flags = parser.parse_args(args)
     util.confirm(f'Arranging dataset in "{flags.dataset_dir}".\nContinue?')
     arrange_dataset(flags.dataset_dir)
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])

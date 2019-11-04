@@ -2,11 +2,12 @@
 # https://github.com/ikasat/python-boilerplate/
 
 import subprocess
+from typing import List
 
 from setuptools import Command, setup
 
 PACKAGE_NAME = 'shinra'
-VERSION = '0.1.0'
+VERSION = '0.2.0'
 
 
 class _SimpleCommand(Command):
@@ -36,10 +37,22 @@ class _VetCommand(_SimpleCommand):
         subprocess.check_call(['flake8'])
 
 
+def _requires_from_file(file_path: str) -> List[str]:
+    with open(file_path, 'r') as fin:
+        return fin.read().splitlines()
+
+
 def main() -> None:
     setup(
         name=PACKAGE_NAME,
         version=VERSION,
+        author='tanakafwd',
+        description='Tools for SHINRA 2019: Wikipedia Structuring Project',
+        license='MIT',
+        packages=[PACKAGE_NAME],
+        include_package_data=True,
+        python_requires='>=3.6',
+        install_requires=_requires_from_file('requirements.txt'),
         cmdclass={
             'fmt': _FmtCommand,
             'test': _TestCommand,

@@ -64,6 +64,7 @@ class _HtmlCleaner(HTMLParser):
         super().__init__(convert_charrefs=False)
 
     def clean(self, content: Content) -> str:
+        self._script_tag_stack: List[str] = []
         self._content = content
         self._cleaned_content = list(content.raw_content)
         self.feed(content.raw_content)
@@ -79,6 +80,8 @@ class _HtmlCleaner(HTMLParser):
     def handle_starttag(
             self, tag: str, attrs: List[Tuple[str, Optional[str]]]) -> None:
         self._clear_tag()
+        if self._is_script_tag(tag):
+            self._script_tag_stack.append(tag)
 
     def handle_startendtag(self, tag: str, attrs: List[Tuple[str, str]]) \
             -> None:
@@ -86,6 +89,8 @@ class _HtmlCleaner(HTMLParser):
 
     def handle_endtag(self, tag: str) -> None:
         self._clear_tag()
+        if self._is_script_tag(tag):
+            self._script_tag_stack.pop()
 
     def _clear_tag(self) -> None:
         (tag_start_line_id, tag_start_offset) = self._get_position()
@@ -102,7 +107,12 @@ class _HtmlCleaner(HTMLParser):
         self._set_blank(char_offset, char_offset + len(data) + 7)
 
     def handle_data(self, data: str) -> None:
-        pass
+        if self._script_tag_stack:
+            # Remove data within a script tag.
+            (data_start_line_id, data_start_offset) = self._get_position()
+            char_offset = self._content.get_char_offset(data_start_line_id,
+                                                        data_start_offset)
+            self._set_blank(char_offset, char_offset + len(data))
 
     def handle_entityref(self, name: str) -> None:
         pass
@@ -125,6 +135,14 @@ class _HtmlCleaner(HTMLParser):
     def _is_newline(char: str) -> bool:
         return char == '\n'
 
+    @staticmethod
+    def _is_script_tag(tag: str) -> bool:
+        return tag.strip().lower() == 'script'
+
 
 def clean_html(content: Content) -> str:
     return _HtmlCleaner().clean(content)
+
+
+def clean_html_content(content: Content) -> Content:
+    return Content(clean_html(content))

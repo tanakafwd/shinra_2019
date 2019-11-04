@@ -61,6 +61,9 @@ def test_clean_html():
               <dd>dd10</dd>
               <dd>dd11<!-- comment3 --></dd>
             </dl>
+            <script type="text/javascript">
+              document.write('&gt;test&lt;');
+            </script>
           </body>
         </html>"""
     got = c.clean_html(c.Content(html_content))
@@ -74,7 +77,7 @@ def test_clean_html():
                 
             test_body
                 test_h1     
-            \u2028test_h1_content1
+             test_h1_content1
                 
             test_h1_content2
                 test_h2_1     
@@ -93,5 +96,8 @@ def test_clean_html():
                   dd10     
                   dd11                      
                  
+                                           
+                                             
+                     
                  
                """  # noqa

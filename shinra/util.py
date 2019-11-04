@@ -1,3 +1,4 @@
+import csv
 import hashlib
 import os
 import sys
@@ -28,3 +29,15 @@ def md5(file_path: str) -> str:
             h.update(data)
             data = fin.read(block_size)
     return h.hexdigest().lower()
+
+
+# Allow to read huge CSV files.
+csv.field_size_limit(1048576)
+
+
+def csv_reader(fin):
+    return csv.reader(fin)
+
+
+def csv_writer(fout):
+    return csv.writer(fout, lineterminator='\n')

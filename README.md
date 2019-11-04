@@ -12,15 +12,25 @@ Tools for
 
 ### Python Environment Initialization
 
-```shell
-$ git clone https://github.com/tanakafwd/shinra_2019.git
-$ cd shinra_2019
-$ pipenv --rm
-$ pipenv sync --dev
-```
+1. Set up required software. See "[Prerequisites](#prerequisites)".
+1. Clone this repository.
+
+    ```shell
+    $ git clone https://github.com/tanakafwd/shinra_2019.git
+    ```
+
+1. Install dependent Python packages.
+
+    ```shell
+    $ cd shinra_2019
+    $ pipenv --rm
+    $ pipenv sync --dev
+    ```
 
 ### Dataset Arrangement
 
+1. Initialize your Python environment.
+  See "[Python Environment Initialization](#python-environment-initialization)".
 1. Make a dataset directory like `~/shinra`.
 1. Download dataset zip files from the
   [download page](http://liat-aip.sakura.ne.jp/%E6%A3%AE%E7%BE%85/%E6%A3%AE%E7%BE%85wikipedia%E6%A7%8B%E9%80%A0%E5%8C%96%E3%83%97%E3%83%AD%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%882019/%E6%A3%AE%E7%BE%852019%E3%83%87%E3%83%BC%E3%82%BF%E9%85%8D%E5%B8%83/).
@@ -75,8 +85,9 @@ $ pipenv sync --dev
 ### Dataset Catalog Generation
 
 The output catalogs are
-[here](https://github.com/tanakafwd/shinra_2019_data/tree/master/shinra/catalog).
+[Here](https://github.com/tanakafwd/shinra_2019_data/tree/master/shinra/catalog).
 
+1. Arrange datasets. See "[Dataset Arrangement](#dataset-arrangement)".
 1. Make a dataset catalog directory like `~/shinra/catalog`.
 1. Run the script to make catalogs.
 
@@ -114,6 +125,13 @@ $ pipenv run fmt
 
 ```shell
 $ pipenv run vet
+```
+
+### Dependent Package Update
+
+```shell
+$ pipenv install REQUIRED_PACKAGE
+$ pipenv run pipfile2req > requirements.txt
 ```
 
 ## License
