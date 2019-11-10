@@ -7,7 +7,7 @@ from typing import Any, List
 from setuptools import Command, setup
 
 PACKAGE_NAME = 'shinra'
-VERSION = '0.2.0'
+VERSION = '0.3.0'
 
 
 class _SimpleCommand(Command):
