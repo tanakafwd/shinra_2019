@@ -1,17 +1,15 @@
-#!/usr/bin/env python3
 import os
 import platform
 import shutil
 import subprocess
-import sys
-from argparse import ArgumentParser
 from multiprocessing import Pool
 from tempfile import TemporaryDirectory
-from typing import List, NamedTuple, Set
+from typing import NamedTuple, Set
 
 from tqdm import tqdm
 
-from shinra import dataset, util
+from shinra import util
+from shinra.dataset import dataset
 from shinra.logger import get_logger
 
 _LOG = get_logger()
@@ -181,18 +179,3 @@ def arrange_dataset(dataset_dir: str) -> None:
         assert html_page_ids
         assert text_page_ids
         assert html_page_ids == text_page_ids
-
-
-def main(args: List[str]) -> None:
-    parser = ArgumentParser()
-    parser.add_argument('--dataset_dir',
-                        type=str,
-                        required=True,
-                        help='Path to the dataset directory.')
-    flags = parser.parse_args(args)
-    util.confirm(f'Arranging dataset in "{flags.dataset_dir}".\nContinue?')
-    arrange_dataset(flags.dataset_dir)
-
-
-if __name__ == '__main__':
-    main(sys.argv[1:])

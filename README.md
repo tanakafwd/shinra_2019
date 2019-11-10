@@ -46,7 +46,7 @@ Tools for
 1. Run the script to arrange the dataset.
 
     ```shell
-    $ pipenv run shinra/arrange_dataset.py --dataset_dir ~/shinra
+    $ pipenv run script/arrange_dataset.py --dataset_dir ~/shinra
     ```
 
     This script arranges the dataset like the following.
@@ -92,7 +92,7 @@ The output catalogs are
 1. Run the script to make catalogs.
 
     ```shell
-    $ pipenv run shinra/make_dataset_catalog.py --dataset_dir ~/shinra --output_catalog_dir ~/shinra/catalog
+    $ pipenv run scripts/make_dataset_catalog.py --dataset_dir ~/shinra --output_dir ~/shinra/catalog
     ```
 
     This script makes dataset catalogs like the following.
@@ -105,6 +105,24 @@ The output catalogs are
     ├── Bay_catalog.csv
     ...
     └── summary_catalog.csv
+    ```
+
+### Dataset Annotation Inspection
+
+1. Arrange datasets. See "[Dataset Arrangement](#dataset-arrangement)".
+1. Run the script to inspect annotations.
+
+    ```shell
+    $ pipenv run scripts/inspect_dataset_annotation.py --dataset_dir ~/shinra --output_dir ~/shinra/annotation_inspection
+    ```
+
+### Dataset Page Inspection
+
+1. Arrange datasets. See "[Dataset Arrangement](#dataset-arrangement)".
+1. Run the script to inspect pages.
+
+    ```shell
+    $ pipenv run scripts/inspect_dataset_page.py --dataset_dir ~/shinra --output_dir ~/shinra/page_inspection
     ```
 
 ## Development

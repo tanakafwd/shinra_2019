@@ -91,8 +91,8 @@ class LineOffset(NamedTuple):
 
 
 class Offset(NamedTuple):
-    start: Optional[LineOffset]
-    end: Optional[LineOffset]
+    start: LineOffset
+    end: LineOffset
     text: Optional[str]
 
 
@@ -102,24 +102,20 @@ class Annotation(NamedTuple):
     title: Optional[str]
     ene: Optional[str]
     attribute: str
-    html_offset: Optional[Offset]
-    text_offset: Optional[Offset]
+    html_offset: Offset
+    text_offset: Offset
 
 
-def make_line_offset(data: Optional[Any]) -> Optional[LineOffset]:
-    if data is None:
-        return None
+def make_line_offset(data: Dict[str, Any]) -> LineOffset:
     return LineOffset(
-        line_id=data.get('line_id'),
-        offset=data.get('offset'))
+        line_id=data['line_id'],
+        offset=data['offset'])
 
 
-def make_offset(data: Optional[Any]) -> Optional[Offset]:
-    if data is None:
-        return None
+def make_offset(data: Dict[str, Any]) -> Offset:
     return Offset(
-        start=make_line_offset(data.get('start')),
-        end=make_line_offset(data.get('end')),
+        start=make_line_offset(data['start']),
+        end=make_line_offset(data['end']),
         text=data.get('text'))
 
 
@@ -130,8 +126,8 @@ def make_annotation(annotation_id: int, data: Dict[str, Any]) -> Annotation:
         title=data.get('title'),
         ene=data.get('ene'),
         attribute=data['attribute'],
-        html_offset=make_offset(data.get('html_offset')),
-        text_offset=make_offset(data.get('text_offset')))
+        html_offset=make_offset(data['html_offset']),
+        text_offset=make_offset(data['text_offset']))
 
 
 def parse_annotation_line(annotation_id: int, line: str) -> Annotation:

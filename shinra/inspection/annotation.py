@@ -1,11 +1,8 @@
-#!/usr/bin/env python3
 import enum
 import html
 import os.path
 import re
-import sys
 import unicodedata
-from argparse import ArgumentParser
 from collections import defaultdict
 from itertools import chain
 from multiprocessing import Pool
@@ -14,8 +11,9 @@ from typing import (Any, DefaultDict, Generator, List, NamedTuple, Optional,
 
 from tqdm import tqdm
 
-from shinra import dataset, util
+from shinra import util
 from shinra.content import Content, clean_html_content
+from shinra.dataset import dataset
 
 
 class _InspectAnnotationsTaskArgs(NamedTuple):
@@ -45,6 +43,9 @@ class ErrorType(enum.Enum):
     # The annotated text has unpaired braces.
     HTML_UNPAIRED_BRACES = enum.auto()
 
+    # There is an annotation which is overlapped with another.
+    HTML_OVERLAPPED_ANNOTATIONS = enum.auto()
+
     # The text file does not exist.
     TEXT_FILE_NOT_FOUND = enum.auto()
 
@@ -56,6 +57,9 @@ class ErrorType(enum.Enum):
 
     # The annotated text has unpaired braces.
     TEXT_UNPAIRED_BRACES = enum.auto()
+
+    # There is an annotation which is overlapped with another.
+    TEXT_OVERLAPPED_ANNOTATIONS = enum.auto()
 
     def __str__(self):
         # Remove the prefix of "ErrorType.".
@@ -159,11 +163,47 @@ def _braces_paired(text: str) -> bool:
     return True
 
 
+class _DetectOverlapAnnotationsResult(NamedTuple):
+    annotation: dataset.Annotation
+    overlapped_annotation: dataset.Annotation
+
+
+def _is_overlapped(start_offset_a: int, end_offset_a: int,
+                   start_offset_b: int, end_offset_b: int) -> bool:
+    # Start offset is inclusive whereas end offset is exclusive.
+    assert start_offset_a < end_offset_a
+    assert start_offset_b < end_offset_b
+    return not (end_offset_a <= start_offset_b
+                or end_offset_b <= start_offset_a)
+
+
+def _detect_overlap_annotations(
+        sorted_indexed_annotations:
+        Tuple[Tuple[int, int, dataset.Annotation], ...]) \
+        -> Generator[_DetectOverlapAnnotationsResult, None, None]:
+    for i in range(len(sorted_indexed_annotations)):
+        (start_offset_a, end_offset_a,
+         annotation_a) = sorted_indexed_annotations[i]
+        for j in range(i + 1, len(sorted_indexed_annotations)):
+            (start_offset_b, end_offset_b, annotation_b) \
+                = sorted_indexed_annotations[j]
+            if end_offset_a <= start_offset_b:
+                break
+            if _is_overlapped(
+                    start_offset_a, end_offset_a, start_offset_b, end_offset_b):
+                yield _DetectOverlapAnnotationsResult(
+                    annotation=annotation_a,
+                    overlapped_annotation=annotation_b)
+
+
 def _check_html_text(
         content: Content, annotations: Tuple[dataset.Annotation, ...]) \
         -> Generator[_InspectResult, None, None]:
+    annotations_by_attribute: DefaultDict[str, List[dataset.Annotation]] \
+        = defaultdict(list)
     clean_content = clean_html_content(content)
     for annotation in annotations:
+        annotations_by_attribute[annotation.attribute].append(annotation)
         offset = annotation.html_offset
         if offset is not None and offset.text is not None:
             text = content.get_text(
@@ -227,12 +267,30 @@ def _check_html_text(
                 continue
             # TODO: Also output a suggestion to modify the annotation.
             # TODO: Detect tokenization mismatch.
+    for (attribute, grouped_annotations) in annotations_by_attribute.items():
+        indexed_annotations = tuple(sorted(
+            (content.get_char_offset(*annotation.html_offset.start),
+             content.get_char_offset(*annotation.html_offset.end),
+             annotation)
+            for annotation in grouped_annotations))
+        for result in _detect_overlap_annotations(indexed_annotations):
+            yield _InspectResult(
+                error_type=ErrorType.HTML_OVERLAPPED_ANNOTATIONS,
+                error_detail=(
+                    f'{attribute}:'
+                    + f' annotation "{result.annotation.annotation_id}"'
+                    + ' is overlapped with'
+                    + f' "{result.overlapped_annotation.annotation_id}"'),
+                annotation=result.annotation)
 
 
 def _check_text_text(
         content: Content, annotations: Tuple[dataset.Annotation, ...]) \
         -> Generator[_InspectResult, None, None]:
+    annotations_by_attribute: DefaultDict[str, List[dataset.Annotation]] \
+        = defaultdict(list)
     for annotation in annotations:
+        annotations_by_attribute[annotation.attribute].append(annotation)
         offset = annotation.text_offset
         if offset is not None and offset.text is not None:
             text = content.get_text(
@@ -261,6 +319,21 @@ def _check_text_text(
                 continue
             # TODO: Also output a suggestion to modify the annotation.
             # TODO: Detect tokenization mismatch.
+    for (attribute, grouped_annotations) in annotations_by_attribute.items():
+        indexed_annotations = tuple(sorted(
+            (content.get_char_offset(*annotation.text_offset.start),
+             content.get_char_offset(*annotation.text_offset.end),
+             annotation)
+            for annotation in grouped_annotations))
+        for result in _detect_overlap_annotations(indexed_annotations):
+            yield _InspectResult(
+                error_type=ErrorType.TEXT_OVERLAPPED_ANNOTATIONS,
+                error_detail=(
+                    f'{attribute}:'
+                    + f' annotation "{result.annotation.annotation_id}"'
+                    + ' is overlapped with'
+                    + f' "{result.overlapped_annotation.annotation_id}"'),
+                annotation=result.annotation)
 
 
 def _inspect_annotations_task(args: _InspectAnnotationsTaskArgs) \
@@ -368,23 +441,3 @@ def inspect_annotations(dataset_dir: str, output_dir: str) -> None:
             row.extend(result.error_count_by_type[error_type]
                        for error_type in ErrorType)
             writer.writerow(row)
-
-
-def main(args: List[str]) -> None:
-    parser = ArgumentParser()
-    parser.add_argument('--dataset_dir',
-                        type=str,
-                        required=True,
-                        help='Path to the dataset directory.')
-    parser.add_argument('--output_dir',
-                        type=str,
-                        required=True,
-                        help='Path to the output directory.')
-    flags = parser.parse_args(args)
-    util.confirm(
-        f'Inspecting annotations in "{flags.dataset_dir}".\nContinue?')
-    inspect_annotations(flags.dataset_dir, flags.output_dir)
-
-
-if __name__ == '__main__':
-    main(sys.argv[1:])

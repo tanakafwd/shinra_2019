@@ -1,4 +1,4 @@
-import shinra.dataset as d
+import shinra.dataset.dataset as d
 
 
 def test_get_page_id_from_file_path():

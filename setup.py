@@ -2,7 +2,7 @@
 # https://github.com/ikasat/python-boilerplate/
 
 import subprocess
-from typing import List
+from typing import Any, List
 
 from setuptools import Command, setup
 
@@ -11,7 +11,7 @@ VERSION = '0.2.0'
 
 
 class _SimpleCommand(Command):
-    user_options = []
+    user_options: List[Any] = []
 
     def initialize_options(self) -> None:
         pass
@@ -33,7 +33,8 @@ class _TestCommand(_SimpleCommand):
 
 class _VetCommand(_SimpleCommand):
     def run(self) -> None:
-        subprocess.check_call(['mypy', PACKAGE_NAME])
+        subprocess.check_call(
+            ['mypy', PACKAGE_NAME, 'tests', 'scripts', 'setup.py'])
         subprocess.check_call(['flake8'])
 
 

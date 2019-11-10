@@ -1,8 +1,5 @@
-#!/usr/bin/env python3
 import os
 import re
-import sys
-from argparse import ArgumentParser
 from collections import defaultdict
 from multiprocessing import Pool
 from typing import Any, DefaultDict, Dict, Generator, List, NamedTuple, Tuple
@@ -10,7 +7,8 @@ from typing import Any, DefaultDict, Dict, Generator, List, NamedTuple, Tuple
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
-from shinra import dataset, util
+from shinra import util
+from shinra.dataset import dataset
 
 
 def _make_file_name(prefix: str) -> str:
@@ -19,7 +17,7 @@ def _make_file_name(prefix: str) -> str:
 
 class _AnnotationInfo(NamedTuple):
     num_annotations: int
-    attribute_counts: DefaultDict[str, int]
+    num_annotations_by_attribute: DefaultDict[str, int]
 
 
 def _get_annotation_info(annotation_file_path: str) \
@@ -30,14 +28,14 @@ def _get_annotation_info(annotation_file_path: str) \
     attributes = set()
     for (page_id, annotations) in annotations_by_page_id.items():
         num_annotations = len(annotations)
-        attribute_counts: DefaultDict[str, int] = defaultdict(int)
+        num_annotations_by_attribute: DefaultDict[str, int] = defaultdict(int)
         for annotation in annotations:
             attribute = annotation.attribute
-            attribute_counts[attribute] += 1
+            num_annotations_by_attribute[attribute] += 1
             attributes.add(attribute)
         annotation_info_by_page_id[page_id] = _AnnotationInfo(
             num_annotations=num_annotations,
-            attribute_counts=attribute_counts)
+            num_annotations_by_attribute=num_annotations_by_attribute)
     return (tuple(sorted(attributes)), annotation_info_by_page_id)
 
 
@@ -114,7 +112,7 @@ class _MakeCategoryDatasetCatalogs(NamedTuple):
     num_pages_with_infobox: int
     num_attribute_types: int
     total_num_annotations: int
-    attribute_counts: Dict[str, int]
+    num_annotations_by_attribute: Dict[str, int]
 
 
 def make_category_dataset_catalogs(
@@ -159,15 +157,17 @@ def make_category_dataset_catalogs(
         num_pages_with_annotation = 0
         num_pages_with_infobox = 0
         total_num_annotations = 0
-        total_attribute_counts: DefaultDict[str, int] = defaultdict(int)
+        total_num_annotations_by_attribute: DefaultDict[str, int] \
+            = defaultdict(int)
         for page_id in sorted(file_info_by_page_id.keys()):
             file_info = file_info_by_page_id[page_id]
             row = list(file_info)
             annotation_info = annotation_info_by_page_id.get(page_id)
             if annotation_info:
                 row.append(annotation_info.num_annotations)
-                row.extend(annotation_info.attribute_counts[attribute]
-                           for attribute in attributes)
+                row.extend(
+                    annotation_info.num_annotations_by_attribute[attribute]
+                    for attribute in attributes)
             else:
                 row.append(None)
                 row.extend(None for unused in range(len(attributes)))
@@ -180,8 +180,9 @@ def make_category_dataset_catalogs(
                and annotation_info.num_annotations > 0:
                 num_pages_with_annotation += 1
                 total_num_annotations += annotation_info.num_annotations
-                _add_values_in_place(total_attribute_counts,
-                                     annotation_info.attribute_counts)
+                _add_values_in_place(
+                    total_num_annotations_by_attribute,
+                    annotation_info.num_annotations_by_attribute)
             if file_info.is_disambiguation_page:
                 num_disambiguation_pages += 1
             if file_info.infobox_count > 0:
@@ -197,7 +198,7 @@ def make_category_dataset_catalogs(
         num_pages_with_infobox=num_pages_with_infobox,
         num_attribute_types=len(attributes),
         total_num_annotations=total_num_annotations,
-        attribute_counts=total_attribute_counts)
+        num_annotations_by_attribute=total_num_annotations_by_attribute)
 
 
 def make_dataset_catalogs(dataset_dir: str, output_catalog_dir: str) -> None:
@@ -208,13 +209,14 @@ def make_dataset_catalogs(dataset_dir: str, output_catalog_dir: str) -> None:
         result = make_category_dataset_catalogs(
             dataset_dir, output_catalog_dir, category)
         header_row = list(_MakeCategoryDatasetCatalogs._fields)
-        header_row.extend(sorted(result.attribute_counts.keys()))
+        header_row.extend(sorted(result.num_annotations_by_attribute.keys()))
         summary_rows.append(header_row)
         value_dict = result._asdict()
-        value_dict['attribute_counts'] = None
+        value_dict['num_annotations_by_attribute'] = None
         value_row = list(value_dict.values())
-        value_row.extend(result.attribute_counts[attribute]
-                         for attribute in sorted(result.attribute_counts))
+        value_row.extend(
+            result.num_annotations_by_attribute[attribute]
+            for attribute in sorted(result.num_annotations_by_attribute))
         summary_rows.append(value_row)
     summary_file_path = os.path.join(
         output_catalog_dir, _make_file_name('summary'))
@@ -222,23 +224,3 @@ def make_dataset_catalogs(dataset_dir: str, output_catalog_dir: str) -> None:
         writer = util.csv_writer(fout)
         for row in _transpose(summary_rows):
             writer.writerow(row)
-
-
-def main(args: List[str]) -> None:
-    parser = ArgumentParser()
-    parser.add_argument('--dataset_dir',
-                        type=str,
-                        required=True,
-                        help='Path to the dataset directory.')
-    parser.add_argument('--output_catalog_dir',
-                        type=str,
-                        required=True,
-                        help='Path to the output catalog directory.')
-    flags = parser.parse_args(args)
-    util.confirm(
-        f'Making dataset catalogs in "{flags.output_catalog_dir}".\nContinue?')
-    make_dataset_catalogs(flags.dataset_dir, flags.output_catalog_dir)
-
-
-if __name__ == '__main__':
-    main(sys.argv[1:])

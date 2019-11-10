@@ -1,8 +1,6 @@
-#!/usr/bin/env python3
 import enum
 import os
-import sys
-from argparse import ArgumentParser
+import re
 from collections import defaultdict
 from itertools import chain
 from multiprocessing import Pool
@@ -10,13 +8,17 @@ from typing import Any, DefaultDict, List, NamedTuple, Tuple
 
 from tqdm import tqdm
 
-from shinra import dataset, util
+from shinra import util
 from shinra.content import Content, clean_html_content
+from shinra.dataset import dataset
 
 
 class ErrorType(enum.Enum):
     # Failure on cleaning HTML.
     CLEAN_HTML_ERROR = enum.auto()
+
+    # The HTML content contains unescaped reserved character like < and >.
+    WITH_HTML_UNESCAPED_RESERVED_CHARACTER = enum.auto()
 
     def __str__(self):
         # Remove the prefix of "ErrorType.".
@@ -44,6 +46,16 @@ def _make_file_name(prefix: str) -> str:
     return f'{prefix}_page_inspection.csv'
 
 
+_HTML_RESERVED_CHARACTERS = frozenset(('<', '>'))
+
+_RE_HTML_RESERVED_CHARACTERS = re.compile(
+    '|'.join(sorted(_HTML_RESERVED_CHARACTERS)))
+
+
+def _contains_html_reserved_character(text: str) -> bool:
+    return _RE_HTML_RESERVED_CHARACTERS.search(text) is not None
+
+
 def _inspect_page_task(args: _InspectPageTaskArgs) \
         -> Tuple[_InspectPageTaskResult, ...]:
     results: List[_InspectPageTaskResult] = []
@@ -58,7 +70,14 @@ def _inspect_page_task(args: _InspectPageTaskArgs) \
                 error_type=ErrorType.CLEAN_HTML_ERROR,
                 error_detail=(
                     'Content length mismatch: '
-                    f'{html_content_length} != {clean_content_length}')))
+                    + f'{html_content_length} != {clean_content_length}')))
+        elif _contains_html_reserved_character(clean_content.raw_content):
+            results.append(_InspectPageTaskResult(
+                page_id=args.page_id,
+                error_type=ErrorType.WITH_HTML_UNESCAPED_RESERVED_CHARACTER,
+                error_detail=(
+                    'Contains html reserved character: '
+                    + ','.join(_HTML_RESERVED_CHARACTERS))))
     except Exception as e:
         results.append(_InspectPageTaskResult(
             page_id=args.page_id,
@@ -124,23 +143,3 @@ def inspect_pages(dataset_dir: str, output_dir: str) -> None:
             row.extend(result.error_count_by_type[error_type]
                        for error_type in ErrorType)
             writer.writerow(row)
-
-
-def main(args: List[str]) -> None:
-    parser = ArgumentParser()
-    parser.add_argument('--dataset_dir',
-                        type=str,
-                        required=True,
-                        help='Path to the dataset directory.')
-    parser.add_argument('--output_dir',
-                        type=str,
-                        required=True,
-                        help='Path to the output directory.')
-    flags = parser.parse_args(args)
-    util.confirm(
-        f'Inspecting pages in "{flags.dataset_dir}".\nContinue?')
-    inspect_pages(flags.dataset_dir, flags.output_dir)
-
-
-if __name__ == '__main__':
-    main(sys.argv[1:])
