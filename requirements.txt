@@ -1,7 +1,8 @@
+-i https://pypi.org/simple/
 beautifulsoup4==4.8.1
 html5lib==1.0.1
 lxml==4.4.1
-six==1.13.0
-soupsieve==1.9.5
+six==1.16.0
+soupsieve==2.2.1
 tqdm==4.37.0
 webencodings==0.5.1
