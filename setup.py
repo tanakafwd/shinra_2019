@@ -40,7 +40,8 @@ class _VetCommand(_SimpleCommand):
 
 def _requires_from_file(file_path: str) -> List[str]:
     with open(file_path, 'r') as fin:
-        return fin.read().splitlines()
+        # Skip the header line.
+        return fin.read().splitlines()[1:]
 
 
 def main() -> None:
